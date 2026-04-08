@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const cron = require('node-cron');
+const crypto = require('crypto');
 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -59,9 +60,17 @@ app.post('/auth/login', authLimiter, async (req, res) => {
     if (!valid) return res.status(401).json({ message: 'Wrong password' });
     const token = jwt.sign(
       { id: user.rows[0].id, role: user.rows[0].role },
-      process.env.JWT_SECRET
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
     );
-    res.json({ accessToken: token, role: user.rows[0].role });
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    await pool.query(
+      'INSERT INTO refresh_tokens (token, expires_at, user_id) VALUES ($1, $2, $3)',
+      [refreshToken, expiresAt, user.rows[0].id]
+    );
+    res.json({ accessToken: token, refreshToken, role: user.rows[0].role });
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ message: err.message });
@@ -78,11 +87,60 @@ app.post('/auth/register', authLimiter, async (req, res) => {
       [email, hashed, name || null]
     );
     const user = result.rows[0];
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET);
-    res.json({ accessToken: token, role: user.role });
+    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    await pool.query(
+      'INSERT INTO refresh_tokens (token, expires_at, user_id) VALUES ($1, $2, $3)',
+      [refreshToken, expiresAt, user.id]
+    );
+    res.json({ accessToken: token, refreshToken, role: user.role });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'Email already registered' });
     console.error('Register error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── Auth - Refresh & Logout ─────────────────────────────────────
+app.post('/auth/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: 'Refresh token required' });
+    
+    const result = await pool.query('SELECT * FROM refresh_tokens WHERE token=$1', [refreshToken]);
+    if (!result.rows.length) return res.status(403).json({ message: 'Invalid refresh token' });
+    
+    const tokenData = result.rows[0];
+    if (new Date() > new Date(tokenData.expires_at)) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token=$1', [refreshToken]);
+      return res.status(403).json({ message: 'Refresh token expired' });
+    }
+    
+    const user = await pool.query('SELECT * FROM users WHERE id=$1', [tokenData.user_id]);
+    if (!user.rows.length) return res.status(403).json({ message: 'User not found' });
+    
+    const newAccessToken = jwt.sign(
+      { id: user.rows[0].id, role: user.rows[0].role },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+    res.json({ accessToken: newAccessToken });
+  } catch (err) {
+    console.error('Refresh token error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/auth/logout', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token=$1', [refreshToken]);
+    }
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });

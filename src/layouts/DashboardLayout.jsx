@@ -32,8 +32,15 @@ export default function DashboardLayout() {
     return item ? item.label : 'Dashboard'
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken')
+      if (refreshToken) await api.post('/auth/logout', { refreshToken })
+    } catch (e) {
+      console.error(e)
+    }
     localStorage.removeItem('token')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('role')
     navigate('/login')
   }
