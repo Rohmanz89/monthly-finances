@@ -19,19 +19,7 @@ app.get('/', (req, res) => {
 app.use(helmet());
 
 // CORS Configuration
-const allowedOrigins = process.env.FRONTEND_URL 
-  ? [process.env.FRONTEND_URL, 'http://localhost:5173'] 
-  : ['http://localhost:5173'];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('The CORS policy for this site does not allow access from the specified Origin.'), false);
-    }
-    return callback(null, true);
-  }
-}));
+app.use(cors({ origin: '*' }));
 
 app.use(express.json());
 
