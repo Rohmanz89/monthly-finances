@@ -11,6 +11,10 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+app.get('/', (req, res) => {
+  res.json({ message: 'Expense Tracker API is running!' });
+});
+
 // Security Headers
 app.use(helmet());
 
@@ -277,6 +281,11 @@ cron.schedule('0 0 * * *', async () => {
   }
 });
 
-app.listen(process.env.PORT, () =>
-  console.log(`Server running on port ${process.env.PORT}`)
-);
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () =>
+    console.log(`Server running on port ${port}`)
+  );
+}
+
+module.exports = app;
