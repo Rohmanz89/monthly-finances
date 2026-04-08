@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useContext } from 'react'
+import { useState, useContext, useEffect } from 'react'
+import api from '../services/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AppContext } from '../App'
 import {
@@ -18,9 +19,13 @@ const navItems = [
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { darkMode, setDarkMode } = useContext(AppContext)
+  const { darkMode, setDarkMode, setSettings } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    api.get('/settings').then(r => setSettings(r.data)).catch(() => {})
+  }, [setSettings])
 
   const getPageTitle = () => {
     const item = navItems.find((n) => n.path === location.pathname)

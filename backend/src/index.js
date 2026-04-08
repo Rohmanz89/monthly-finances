@@ -228,6 +228,43 @@ app.delete('/categories/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ─── Settings - Get & Update ─────────────────────────────────────
+app.get('/settings', authMiddleware, async (req, res) => {
+  try {
+    let result = await pool.query('SELECT show_income, show_expense, show_balance, show_reminder FROM dashboard_settings WHERE user_id=$1', [req.user.id]);
+    if (!result.rows.length) {
+      result = await pool.query(
+        'INSERT INTO dashboard_settings (user_id) VALUES ($1) RETURNING show_income, show_expense, show_balance, show_reminder',
+        [req.user.id]
+      );
+    }
+    const s = result.rows[0];
+    res.json({ showIncome: s.show_income, showExpense: s.show_expense, showBalance: s.show_balance, showReminder: s.show_reminder });
+  } catch (err) {
+    console.error('Get settings error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put('/settings', authMiddleware, async (req, res) => {
+  try {
+    const { showIncome, showExpense, showBalance, showReminder } = req.body;
+    const result = await pool.query(
+      `INSERT INTO dashboard_settings (user_id, show_income, show_expense, show_balance, show_reminder)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id) 
+       DO UPDATE SET show_income=$2, show_expense=$3, show_balance=$4, show_reminder=$5
+       RETURNING show_income, show_expense, show_balance, show_reminder`,
+      [req.user.id, showIncome, showExpense, showBalance, showReminder]
+    );
+    const s = result.rows[0];
+    res.json({ showIncome: s.show_income, showExpense: s.show_expense, showBalance: s.show_balance, showReminder: s.show_reminder });
+  } catch (err) {
+    console.error('Update settings error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ─── Reminder - Unpaid transactions ──────────────────────────────
 app.get('/reminder', authMiddleware, async (req, res) => {
   try {

@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
+import api from './services/api'
 
 export const AppContext = createContext()
 
@@ -31,10 +32,16 @@ function App() {
   }, [darkMode])
   useEffect(() => { localStorage.setItem('dashboardSettings', JSON.stringify(settings)) }, [settings])
 
-  const updateSettings = (s) => setSettings(prev => ({ ...prev, ...s }))
+  const updateSettings = (s) => setSettings(prev => {
+    const next = { ...prev, ...s }
+    if (localStorage.getItem('token')) {
+      api.put('/settings', next).catch(e => console.error(e))
+    }
+    return next
+  })
 
   return (
-    <AppContext.Provider value={{ darkMode, setDarkMode, settings, updateSettings }}>
+    <AppContext.Provider value={{ darkMode, setDarkMode, settings, setSettings, updateSettings }}>
       <ErrorBoundary>
       <BrowserRouter>
         <Routes>
