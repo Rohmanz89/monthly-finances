@@ -19,13 +19,19 @@ const navItems = [
 
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [reminders, setReminders] = useState([])
+  const [showNotifs, setShowNotifs] = useState(false)
   const { darkMode, setDarkMode, setSettings } = useContext(AppContext)
   const location = useLocation()
   const navigate = useNavigate()
 
   useEffect(() => {
     api.get('/settings').then(r => setSettings(r.data)).catch(() => {})
+    api.get('/reminder').then(r => setReminders(r.data)).catch(() => {})
   }, [setSettings])
+
+  const userName = localStorage.getItem('name') || 'User'
+  const initial = userName.charAt(0).toUpperCase()
 
   const getPageTitle = () => {
     const item = navItems.find((n) => n.path === location.pathname)
@@ -42,6 +48,7 @@ export default function DashboardLayout() {
     localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('role')
+    localStorage.removeItem('name')
     navigate('/login')
   }
 
@@ -104,10 +111,34 @@ export default function DashboardLayout() {
             <h2 className="text-lg font-bold text-surface-900 dark:text-white">{getPageTitle()}</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button className="relative p-2 rounded-xl text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
-              <BellIcon className="w-5 h-5" />
-            </button>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold cursor-pointer hover:shadow-lg hover:shadow-primary-500/25 transition-shadow">U</div>
+            <div className="relative">
+              <button onClick={() => setShowNotifs(!showNotifs)} className="relative p-2 rounded-xl text-surface-500 hover:bg-surface-100 dark:hover:bg-surface-800 transition-colors">
+                <BellIcon className="w-5 h-5" />
+                {reminders.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>}
+              </button>
+              <AnimatePresence>
+                {showNotifs && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute right-0 mt-2 w-64 bg-white dark:bg-surface-800 rounded-xl shadow-lg border border-surface-200 dark:border-surface-700 py-2 z-50">
+                    <p className="px-4 py-2 text-[10px] font-bold text-surface-500 uppercase tracking-wider border-b border-surface-100 dark:border-surface-700">Notifikasi</p>
+                    {reminders.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-surface-500">Belum ada tagihan tertunggak.</p>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto">
+                        {reminders.map(r => (
+                          <div key={r.id} className="px-4 py-3 border-b border-surface-100 dark:border-surface-700 hover:bg-surface-50 dark:hover:bg-surface-700 cursor-pointer" onClick={() => navigate('/transactions')}>
+                            <p className="text-sm font-medium text-surface-900 dark:text-white truncate">{r.title}</p>
+                            <p className="text-xs text-red-500 mt-1 font-semibold">Jatuh Tempo: Rp {Number(r.amount).toLocaleString('id-ID')}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-sm font-bold shadow hover:shadow-lg transition-all cursor-pointer" title={userName}>
+              {initial}
+            </div>
             <button onClick={handleLogout} className="p-2 rounded-xl text-surface-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title="Logout">
               <ArrowRightOnRectangleIcon className="w-5 h-5" />
             </button>

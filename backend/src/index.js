@@ -70,7 +70,7 @@ app.post('/auth/login', authLimiter, async (req, res) => {
       'INSERT INTO refresh_tokens (token, expires_at, user_id) VALUES ($1, $2, $3)',
       [refreshToken, expiresAt, user.rows[0].id]
     );
-    res.json({ accessToken: token, refreshToken, role: user.rows[0].role });
+    res.json({ accessToken: token, refreshToken, role: user.rows[0].role, name: user.rows[0].name });
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ message: err.message });
@@ -95,7 +95,7 @@ app.post('/auth/register', authLimiter, async (req, res) => {
       'INSERT INTO refresh_tokens (token, expires_at, user_id) VALUES ($1, $2, $3)',
       [refreshToken, expiresAt, user.id]
     );
-    res.json({ accessToken: token, refreshToken, role: user.role });
+    res.json({ accessToken: token, refreshToken, role: user.role, name: user.name });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'Email already registered' });
     console.error('Register error:', err.message);

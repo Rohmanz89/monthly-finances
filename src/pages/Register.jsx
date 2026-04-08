@@ -19,6 +19,7 @@ export default function Register() {
       localStorage.setItem("token", res.data.accessToken);
       localStorage.setItem("refreshToken", res.data.refreshToken);
       localStorage.setItem("role", res.data.role);
+      if (res.data.name) localStorage.setItem("name", res.data.name);
       navigate("/");
     } catch (err) {
       setError(err?.response?.data?.message || "Registrasi gagal, coba lagi.");
